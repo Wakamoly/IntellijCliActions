@@ -1,41 +1,78 @@
 package io.github.vacxe.cliactions.configurations
 
 import com.intellij.openapi.project.Project
+import kotlinx.coroutines.*
 import org.apache.commons.io.FileUtils
 import java.io.File
-import kotlin.concurrent.thread
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class CliActionsConfigurationProvider(private val project: Project) : ConfigurationProvider {
-    private var subscription: ((Sequence<File>) -> Unit)? = null
-    private var configurations = listOf<File>()
+    private var subscription: ((List<File>) -> Unit)? = null
+    private var currentConfigurations = listOf<File>()
 
-    private var findConfigsThread: Thread? = null
+    /**
+     * Holds a string representation of the current configuration names and their sizes.
+     * Used internally to track and compare configuration changes.
+     * Useful because reloading of files can occur with updates when comparing the previous sizes, but referencing the
+     * files themselves for the `.length()` will always match.
+     */
+    private var currentConfigurationNamesAndSizes: List<Pair<String, Long>>? = null
 
-    // TODO: Move to coroutine?
-    private fun findConfigs() = thread(start = true) {
-        val projectConfigs = File(project.basePath ?: throw Exception("Project basePath cannot be found"))
-            .walk()
-            .maxDepth(2)
-            .filter { it.name.endsWith(ConfigurationFileExtension) }
+    private var findConfigsJob: Job? = null
 
-        val userConfigs = FileUtils.getUserDirectory()
-            .walk()
-            .maxDepth(1)
-            .filter { it.name.endsWith(ConfigurationFileExtension) }
+    private fun findConfigs() = CoroutineScope(Dispatchers.IO).launch {
+        // Invoke this when appropriate to update the UI
+        val invokeUpdate: (newConfigs: List<File>) -> Unit = { newConfigs ->
+            val newConfigsList = newConfigs.toList()
+            currentConfigurationNamesAndSizes = newConfigsList.mapToAbsolutePathFileNamesAndSizes()
+            currentConfigurations = newConfigsList
+            subscription?.invoke(newConfigs)
+        }
 
-        if (configurations.toSet() != projectConfigs + userConfigs) {
-            configurations = (projectConfigs + userConfigs).toList()
-            subscription?.invoke(projectConfigs + userConfigs)
+        while (isActive) {
+            val timestampNow = System.currentTimeMillis()
+            val projectConfigs = File(project.basePath ?: throw Exception("Project basePath cannot be found"))
+                .walk()
+                .maxDepth(2)
+                .filter { it.name.endsWith(ConfigurationFileExtension) }
+
+            val userConfigs = FileUtils.getUserDirectory()
+                .walk()
+                .maxDepth(1)
+                .filter { it.name.endsWith(ConfigurationFileExtension) }
+
+            val newConfigs = (projectConfigs + userConfigs).toList()
+            val configFileNamesAndSizesMatching = currentConfigurationNamesAndSizes?.let { currentNamesAndSizes ->
+                val newNamesAndSizes = newConfigs.mapToAbsolutePathFileNamesAndSizes()
+                currentNamesAndSizes.containsAll(newNamesAndSizes)
+            } ?: false
+
+            if (!configFileNamesAndSizesMatching) {
+                invokeUpdate(newConfigs)
+            }
+
+            val timestampThen = System.currentTimeMillis()
+            val timeElapsed = (timestampThen - timestampNow).milliseconds
+            println("Time elapsed - config scan: $timeElapsed")
+
+            delay(3.seconds)
         }
     }
 
-    override fun subscribe(updateSubscription: (Sequence<File>) -> Unit) {
+    override fun subscribe(updateSubscription: (List<File>) -> Unit) {
+        println("Subscribing to configuration changes")
         subscription = updateSubscription
-        findConfigsThread = findConfigs()
+        findConfigsJob = findConfigs()
     }
 
+    // TODO: Find a way to utilize this when the tool window is hidden, resubscribing when necessary
     override fun unsubscribe() {
+        println("Unsubscribing from configuration changes")
         subscription = null
-        findConfigsThread?.interrupt()
+        findConfigsJob?.cancel()
     }
+
+    private fun List<File>.mapToAbsolutePathFileNamesAndSizes(): List<Pair<String, Long>> =
+        map { file -> file.absolutePath to file.length() }
 }

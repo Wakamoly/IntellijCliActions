@@ -3,7 +3,6 @@ package io.github.vacxe.cliactions.ui
 import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.YamlException
 import com.intellij.icons.AllIcons
-import com.intellij.ide.plugins.PluginManagerCore.logger
 import com.intellij.ui.components.JBTabbedPane
 import io.github.vacxe.cliactions.configurations.ConfigurationProvider
 import io.github.vacxe.cliactions.model.Command
@@ -20,8 +19,10 @@ class CliActionsTablePanel(
     private val configurationFinder: ConfigurationProvider,
     private val runTerminalCommand: (String, String, Boolean) -> Unit,
 ) : JPanel() {
+    private val yaml = Yaml(configuration = Yaml.default.configuration.copy(strictMode = false))
 
-    private val configsUpdate: (Sequence<File>) -> Unit = { configFiles ->
+
+    private val configsUpdate: (List<File>) -> Unit = { configFiles ->
         if (configFiles.toList().isNotEmpty()) {
             val tabItems = configFiles.map { file ->
                 val errorMessages = mutableListOf<String>()
@@ -31,15 +32,13 @@ class CliActionsTablePanel(
                     else -> "Global: "
                 }
                 val tabName = prepend + file.nameWithoutExtension.replace(".cliactions", "")
-                val groups = try {
-                    Yaml.default.decodeFromString(
-                        Config.serializer(), file.readText()
-                    ).groups
-                } catch (e: YamlException) {
-                    errorMessages.add("File `${file.name}` error:" + e.message)
-                    logger.error("Error parsing config file: ${file.absolutePath}", e)
-                    emptyList()
-                }
+                val groups =
+                    try {
+                        yaml.decodeFromString(Config.serializer(), file.readText()).groups
+                    } catch (e: YamlException) {
+                        errorMessages.add("File `${file.name}` error:" + e.message)
+                        emptyList()
+                    }
                 ContentTabItem(
                     name = tabName,
                     messages = errorMessages.toList(),
@@ -47,7 +46,7 @@ class CliActionsTablePanel(
                 )
             }.toList()
 
-            logger.info("Found ${tabItems.size} config files.")
+            println("Found ${tabItems.size} config files.")
             updateState(ToolWindowState.Content(tabItems))
         } else {
             updateState(

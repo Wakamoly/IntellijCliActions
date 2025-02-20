@@ -1,0 +1,13 @@
+# Note for testing this that you may first need to run `chmod +x ./gradlew`
+groups:
+  - name: Build
+    commands:
+      - name: Create Composed Jar
+        command: ./gradlew composedJar
+      - name: Build Plugin
+        command: ./gradlew buildPlugin
+
+  - name: Run Plugin
+    commands:
+      - name: Run Normally
+        command: ./gradlew runIde --stacktrace

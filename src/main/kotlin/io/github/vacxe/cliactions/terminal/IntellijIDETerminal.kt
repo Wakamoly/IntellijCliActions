@@ -20,7 +20,10 @@ class IntellijIDETerminal(private val project: Project) : Terminal {
                     ?: terminalView.createShellWidget(project.basePath, name, false, false)
             }
 
-            terminalWidget.sendCommandToExecute(command)
+            terminalWidget.apply {
+                requestFocus()
+                sendCommandToExecute(command)
+            }
         } catch (err: IOException) {
             err.printStackTrace()
         }

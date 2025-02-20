@@ -16,6 +16,7 @@ class CliActionsToolWindowFactory : DumbAware, ToolWindowFactory {
         val configurationFinder = CliActionsConfigurationProvider(project)
 
         val cmdPanel = CliActionsTablePanel(
+            projectBasePath = project.basePath,
             configurationFinder = configurationFinder,
             runTerminalCommand = { name, command, forceNewTab -> terminalProvider.run(name, command, forceNewTab) }
         )

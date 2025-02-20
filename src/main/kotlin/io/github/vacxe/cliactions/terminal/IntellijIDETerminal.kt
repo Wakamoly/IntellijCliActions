@@ -1,9 +1,7 @@
 package io.github.vacxe.cliactions.terminal
 
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.wm.ToolWindowManager
-import org.jetbrains.plugins.terminal.ShellTerminalWidget
-import org.jetbrains.plugins.terminal.TerminalToolWindowFactory
+import com.intellij.terminal.ui.TerminalWidget
 import org.jetbrains.plugins.terminal.TerminalToolWindowManager
 import java.io.IOException
 
@@ -15,19 +13,18 @@ class IntellijIDETerminal(private val project: Project) : Terminal {
     ) {
         try {
             val terminalView = TerminalToolWindowManager.getInstance(project)
-            val window = ToolWindowManager.getInstance(project).getToolWindow(TerminalToolWindowFactory.TOOL_WINDOW_ID)
-            val contentManager = window?.contentManager
+            val contentManager = terminalView.toolWindow?.contentManager
 
-            val widget = if (forceNewTab) {
-                terminalView.createLocalShellWidget(project.basePath, name)
+            val terminalWidget = if (forceNewTab) {
+                terminalView.createShellWidget(project.basePath, name, true, true)
             } else {
                 when (val content = contentManager?.findContent(name)) {
-                    null -> terminalView.createLocalShellWidget(project.basePath, name)
-                    else -> TerminalToolWindowManager.getWidgetByContent(content) as ShellTerminalWidget
+                    null -> terminalView.createShellWidget(project.basePath, name, true, true)
+                    else -> TerminalToolWindowManager.getWidgetByContent(content) as TerminalWidget
                 }
             }
 
-            widget.executeCommand(command)
+            terminalWidget.sendCommandToExecute(command)
         } catch (err: IOException) {
             err.printStackTrace()
         }

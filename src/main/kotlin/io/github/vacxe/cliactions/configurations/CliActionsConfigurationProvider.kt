@@ -11,6 +11,7 @@ class CliActionsConfigurationProvider(private val project: Project) : Configurat
 
     private var findConfigsThread: Thread? = null
 
+    // TODO: Move to coroutine?
     private fun findConfigs() = thread(start = true) {
         val projectConfigs = File(project.basePath ?: throw Exception("Project basePath cannot be found"))
             .walk()

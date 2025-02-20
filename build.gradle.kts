@@ -13,28 +13,16 @@ repositories {
 }
 
 intellij {
-    version.set("2023.2.2")
+    version.set("2024.3.3")
     pluginName.set("CLI Actions")
     plugins.set(listOf("org.jetbrains.plugins.terminal"))
 }
 
 kotlin {
     jvmToolchain(17)
-//    compilerOptions {
-//        jvmTarget = JvmTarget.JVM_17
-//    }
 }
 
 tasks {
-//    withType<JavaCompile> {
-//        sourceCompatibility = "17"
-//        targetCompatibility = "17"
-//    }
-//
-//    withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-//        kotlinOptions.jvmTarget = "17"
-//    }
-
     patchPluginXml {
         sinceBuild.set("232")
         untilBuild.set("")

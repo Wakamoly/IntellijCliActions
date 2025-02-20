@@ -1,7 +1,9 @@
 package io.github.vacxe.cliactions.ui
 
 import com.charleskorn.kaml.Yaml
+import com.charleskorn.kaml.YamlException
 import com.intellij.icons.AllIcons
+import com.intellij.ide.plugins.PluginManagerCore.logger
 import com.intellij.ui.components.JBTabbedPane
 import io.github.vacxe.cliactions.configurations.ConfigurationProvider
 import io.github.vacxe.cliactions.model.Command
@@ -10,7 +12,6 @@ import io.github.vacxe.cliactions.ui.toolwindow.ToolWindowState
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Dimension
-import java.awt.Scrollbar
 import java.io.File
 import javax.swing.*
 
@@ -20,18 +21,26 @@ class CliActionsTablePanel(
 
     private val configsUpdate: (Sequence<File>) -> Unit = { configFiles ->
         if (configFiles.toList().isNotEmpty()) {
-            try {
-                val groups = configFiles.map { file ->
+            val errorMessages = mutableListOf<String>()
+            val groups = configFiles.map { file ->
+                try {
                     Yaml.default.decodeFromString(
                         Config.serializer(), file.readText()
                     ).groups
-                }.flatten().toList()
-                updateState(ToolWindowState.Content(groups))
-            } catch (e: com.charleskorn.kaml.UnknownPropertyException) {
-                updateState(ToolWindowState.Error("Unable to parse configuration ${e.message}"))
-            }
+                } catch (e: YamlException) {
+                    errorMessages.add(e.message)
+                    logger.error("Error parsing config file: ${file.absolutePath}", e)
+                    emptyList()
+                }
+            }.flatten().toList()
+            updateState(ToolWindowState.Content(errorMessages.toList(), groups))
         } else {
-            updateState(ToolWindowState.Error("Can't find any config files. Please define `<name>.cliactions.yaml` in the project root directory"))
+            updateState(
+                ToolWindowState.Error(
+                    "Can't find any config files. Please define `<name>.cliactions.yaml` in the project root " +
+                            "or user home directory."
+                )
+            )
         }
     }
 
@@ -42,6 +51,10 @@ class CliActionsTablePanel(
                 layout = BoxLayout(this, BoxLayout.Y_AXIS)
 
                 val jbTabbedPane = JBTabbedPane()
+
+                viewState.messages.forEach { message ->
+                    add(InformationView(message))
+                }
 
                 viewState.groups.forEach { group ->
                     val commandsLayout = JPanel()
@@ -113,8 +126,9 @@ class CliActionsTablePanel(
     fun dispose() {
         configurationFinder.unsubscribe()
     }
+
     fun initialise() {
-        updateState(ToolWindowState.Loading("Searching for configurations..."))
+        updateState(ToolWindowState.Loading("Searching for configuration files (*.cliactions.yaml)..."))
         configurationFinder.subscribe(configsUpdate)
     }
 }

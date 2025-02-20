@@ -4,6 +4,7 @@ import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.YamlException
 import com.intellij.icons.AllIcons
 import com.intellij.ui.components.JBTabbedPane
+import io.github.vacxe.cliactions.configurations.ConfigurationFileExtension
 import io.github.vacxe.cliactions.configurations.ConfigurationProvider
 import io.github.vacxe.cliactions.model.Command
 import io.github.vacxe.cliactions.model.Config
@@ -31,7 +32,7 @@ class CliActionsTablePanel(
                     file.absolutePath.startsWith(projectBasePath) -> "Local: "
                     else -> "Global: "
                 }
-                val tabName = prepend + file.nameWithoutExtension.replace(".cliactions", "")
+                val tabName = prepend + file.name.replace(ConfigurationFileExtension, "")
                 val groups =
                     try {
                         yaml.decodeFromString(Config.serializer(), file.readText()).groups
@@ -45,8 +46,6 @@ class CliActionsTablePanel(
                     groups = groups,
                 )
             }.toList()
-
-            println("Found ${tabItems.size} config files.")
             updateState(ToolWindowState.Content(tabItems))
         } else {
             updateState(

@@ -4,7 +4,6 @@ import com.intellij.openapi.project.Project
 import kotlinx.coroutines.*
 import org.apache.commons.io.FileUtils
 import java.io.File
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class CliActionsConfigurationProvider(private val project: Project) : ConfigurationProvider {
@@ -31,7 +30,6 @@ class CliActionsConfigurationProvider(private val project: Project) : Configurat
         }
 
         while (isActive) {
-            val timestampNow = System.currentTimeMillis()
             val projectConfigs = File(project.basePath ?: throw Exception("Project basePath cannot be found"))
                 .walk()
                 .maxDepth(2)
@@ -51,24 +49,17 @@ class CliActionsConfigurationProvider(private val project: Project) : Configurat
             if (!configFileNamesAndSizesMatching) {
                 invokeUpdate(newConfigs)
             }
-
-            val timestampThen = System.currentTimeMillis()
-            val timeElapsed = (timestampThen - timestampNow).milliseconds
-            println("Time elapsed - config scan: $timeElapsed")
-
             delay(3.seconds)
         }
     }
 
     override fun subscribe(updateSubscription: (List<File>) -> Unit) {
-        println("Subscribing to configuration changes")
         subscription = updateSubscription
         findConfigsJob = findConfigs()
     }
 
     // TODO: Find a way to utilize this when the tool window is hidden, resubscribing when necessary
     override fun unsubscribe() {
-        println("Unsubscribing from configuration changes")
         subscription = null
         findConfigsJob?.cancel()
     }

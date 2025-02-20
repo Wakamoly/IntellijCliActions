@@ -20,6 +20,7 @@ intellijPlatform {
     pluginConfiguration {
         name.set("CLI Actions")
         version.set("1.1.0")
+        ideaVersion.sinceBuild.set("232.*")
         changeNotes.set(
             """
             - Update Kotlin
